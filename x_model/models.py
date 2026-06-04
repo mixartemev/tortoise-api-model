@@ -52,9 +52,9 @@ class Model(TortModel):
             #     if f.default or f.allows_generated or f.null or not f.required:
             #         fld += (field(default=f.default),)
             #     fields.append(fld)
-            pre_saves = [f.__name__ for f in cls._listeners[Signals.pre_save].get(cls, [])]
+            pre_saves = {f.__name__ for f in cls._listeners[Signals.pre_save].get(cls, [])}
             dcl = make_dataclass(cls.__name__ + cn, fields, bases=(BaseUpd,), kw_only=True)
-            dcl._unq = {o + "_id" for o in meta.o2o_fields if o not in pre_saves}
+            dcl._unq = meta.o2o_fields - pre_saves
             dcl._unq |= set((meta.unique_together or ((),))[0])
             dcl._unq |= {
                 k
@@ -63,6 +63,7 @@ class Model(TortModel):
             }
             if not with_pk:
                 dcl._unq -= {"id"}
+            dcl._unq = {meta.fields_map[f].source_field or f for f in dcl._unq}
             setattr(cls, cn, dcl)
 
         return getattr(cls, cn)
